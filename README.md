@@ -1,100 +1,93 @@
-# Análise de Dados Fisiológicos para Detecção de Mentiras
+# Projeto de Análise de Dados de Fotopletismografia (PPG)
 
-Este projeto analisa dados de fotopletismografia (PPG) e movimento para identificar marcadores fisiológicos que diferenciam a verdade da mentira em contextos positivos e negativos.
+Este projeto foi desenvolvido para automatizar o processamento e a análise de dados de PPG coletados em um experimento sobre detecção de mentiras, envolvendo diferentes condições de valência (positiva/negativa) e veracidade (mentira/verdade).
 
-## Estrutura dos Dados
+##  Visão Geral
 
-Os dados brutos estão organizados em quatro pastas, representando as condições do experimento:
+O objetivo principal é consolidar múltiplos arquivos CSV, cada um contendo dados de um participante em uma condição específica, em uma única tabela de análise (`master_analysis_table.csv`). Esta tabela é formatada para facilitar análises estatísticas subsequentes, com uma linha por participante e colunas representando as métricas fisiológicas em cada condição experimental.
 
-- `Negative Lies`
-- `Negative Truth`
-- `Positive Lies`
-- `Positive Truth`
+## Estrutura de Pastas
 
-Cada arquivo CSV dentro dessas pastas corresponde a um vídeo/ensaio individual. Os nomes de arquivo seguem o padrão:
+Para que o script funcione corretamente, os arquivos de dados brutos (`.csv`) devem ser organizados na seguinte estrutura de pastas:
 
 ```
-PPG_<ID>_<timestamp>.csv
+/
+├── merge_csv.py
+├── master_analysis_table.csv  (gerado pelo script)
+├── README.md
+|
+├── Negative Lies/
+│   ├── PPG_BF001_2NL_....csv
+│   └── ...
+|
+├── Negative Truth/
+│   ├── PPG_BF001_3NT_....csv
+│   └── ...
+|
+├── Positive Lies/
+│   ├── PPG_BF001_4PL_....csv
+│   └── ...
+|
+└── Positive Truth/
+    ├── PPG_BF001_1PT_....csv
+    └── ...
 ```
 
-Onde `<ID>` identifica o participante:
-- `BF` = Black Female
-- `BM` = Black Male
-- `WF` = White Female
-- `WM` = White Male
+O nome de cada subpasta é usado para identificar a condição experimental (Valência e Veracidade).
 
-**Exemplo:** `PPG_BF001_20250724_113953.csv` → Participante **BF001**.
+## Como Usar
 
-## Como Reproduzir a Análise
+### Pré-requisitos
 
-### 1. Instalar Dependências
+- Python 3.x
+- Biblioteca `pandas`
 
-Certifique-se de que você tem Python instalado. Depois, instale as bibliotecas necessárias:
+### Instalação
+
+Se você não tiver a biblioteca `pandas` instalada, pode instalá-la usando `pip`:
 
 ```bash
-pip install pandas matplotlib seaborn scipy
+pip install pandas
 ```
 
-### 2. Unificar os Arquivos CSV
+### Execução
 
-O script `merge_csv.py` combina todos os arquivos `.csv` individuais, extraindo automaticamente:
-
-- **Participant**: ID do participante (ex: `BF001`)
-- **Valence**: Positiva ou Negativa
-- **Veracity**: Verdade ou Mentira
-- **Condition**: Combinação de valência + veracidade (ex: `Positive Lie`)
-
-Além disso, o script gera **três tabelas no formato wide**, já preparadas para análise estatística:
-
-- `bpm_summary.csv` – médias da frequência cardíaca (BPM)
-- `face_summary.csv` – médias do movimento facial
-- `eye_summary.csv` – médias do movimento ocular
-
-Cada tabela tem uma linha por participante e colunas para cada condição experimental:
-
-| Participant | Positive Lie | Negative Lie | Positive Truth | Negative Truth |
-|-------------|--------------|--------------|----------------|----------------|
-| BF001       | 4.09         | 4.03         | 2.82           | 2.83           |
-| BM001       | ...          | ...          | ...            | ...            |
-
-Para executar:
+1.  Coloque o script `merge_csv.py` na pasta raiz do projeto, conforme a estrutura mostrada acima.
+2.  Abra um terminal ou prompt de comando nessa pasta.
+3.  Execute o script com o seguinte comando:
 
 ```bash
 python merge_csv.py
 ```
 
-### 3. Gerar Visualizações
+O script irá processar todos os arquivos, exibir um resumo no console e gerar o arquivo `master_analysis_table.csv` na pasta raiz.
 
-O script `visualize_data.py` gera gráficos (como boxplots) para comparar a distribuição das métricas entre os quatro grupos.
+## Funcionamento do Script (`merge_csv.py`)
 
-```bash
-python visualize_data.py
-```
+O script executa as seguintes etapas:
 
-### 4. Executar a Análise Estatística
+1.  **Busca de Arquivos**: Percorre recursivamente todas as subpastas em busca de arquivos que terminam com `.csv`.
+2.  **Extração de Metadados**: Para cada arquivo encontrado:
+    - Lê o arquivo CSV para um DataFrame do `pandas`.
+    - Extrai o **ID do participante** (ex: `BF001`) do nome do arquivo usando expressões regulares.
+    - Extrai a **condição experimental** a partir do nome da pasta pai (ex: `Positive Lies`).
+3.  **Criação de Novas Colunas**: Adiciona colunas ao DataFrame de cada arquivo para identificar o participante e a condição (`Participant`, `Valence`, `Veracity`, `Condition`).
+4.  **Consolidação Inicial**: Agrupa todos os DataFrames individuais em uma única tabela longa.
+5.  **Criação da Tabela Master**:
+    - Calcula a **média** das métricas de interesse (`Heart Rate (BPM)`, `Face Movement (avg)`, `Eye Movement (avg)`) para cada participante em cada uma das quatro condições.
+    - Pivota os dados para criar uma tabela em formato "wide", onde cada linha corresponde a um participante único.
+    - As colunas são formatadas como `Métrica_Condição` (ex: `Heart Rate (BPM)_Positive_Lie`), contendo o valor médio calculado.
+6.  **Geração do Arquivo Final**: Salva a tabela master no arquivo `master_analysis_table.csv`.
 
-O script `statistical_analysis.py` calcula estatísticas descritivas e realiza testes estatísticos (ex: ANOVA) para verificar diferenças entre os grupos.
+## Arquivo de Saída: `master_analysis_table.csv`
 
-```bash
-python statistical_analysis.py
-```
+O resultado final é uma tabela consolidada, pronta para ser importada em softwares de análise estatística (como R, SPSS, JASP) ou para análises posteriores em Python.
 
-## Resultados da Análise Estatística (ANOVA)
+A estrutura do arquivo de saída é a seguinte:
 
-O teste ANOVA foi usado para determinar se existem diferenças significativas nas médias das métricas fisiológicas entre os quatro grupos. Um p-valor abaixo de 0.05 indica diferença estatisticamente significante.
+| Participant | Heart Rate (BPM)\_Positive\_Lie | Heart Rate (BPM)\_Negative\_Lie | ... | Eye Movement (avg)\_Negative\_Truth |
+| :---------- | :------------------------------ | :------------------------------ | :-- | :---------------------------------- |
+| BF001       | 75.4                            | 82.1                            | ... | 0.23                                |
+| BF002       | 68.9                            | 77.3                            | ... | 0.19                                |
+| ...         | ...                             | ...                             | ... | ...                                 |
 
-### Frequência Cardíaca (Heart Rate - BPM)
-- **Resultado:** Estatisticamente Significante (p-valor = 0.0000)
-- **Observação:** Existem diferenças reais entre os grupos. O grupo "Positive Lies" apresentou a média mais elevada.
-
-### Movimento dos Olhos (Eye Movement - avg)
-- **Resultado:** Estatisticamente Significante (p-valor = 0.0007)
-- **Observação:** A movimentação dos olhos também varia de forma significativa entre os grupos.
-
-### Movimento Facial (Face Movement - avg)
-- **Resultado:** Não Estatisticamente Significante (p-valor = 0.0593)
-- **Observação:** Não foram encontradas evidências suficientes para afirmar que o movimento facial difere entre os grupos.
-
-## Conclusão
-
-A análise sugere que a **frequência cardíaca** e o **movimento dos olhos** são os indicadores fisiológicos mais promissores neste conjunto de dados para diferenciar entre os grupos de verdade/mentira. O movimento facial não se mostrou um diferenciador confiável.
