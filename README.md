@@ -6,6 +6,14 @@ Este projeto foi criado para resolver um desafio comum em pesquisas experimentai
 
 A automação lida com a complexidade de nomes de arquivos e pastas inconsistentes, extraindo de forma inteligente as informações cruciais e reestruturando os dados em formatos "wide" e "long".
 
+### 1.1 Contexto da Pesquisa
+
+Este projeto é parte de um estudo sobre detecção de mentiras utilizando o dataset Miami University Deception Detection Dataset — MU3D, que contém 320 vídeos de pessoas contando verdades e mentiras. A amostragem possui 80 participantes (40 homens e 40 mulheres) que foram gravados ao contar narrativas sobre relacionamento social (Lloyd et al., 2017).
+
+### 1.2 Tecnologia de Fotopletismografia Remota (rPPG)
+
+A fotopletismografia remota (rPPG) é utilizada para extrair informações fisiológicas relacionadas às oscilações de fluxo sanguíneo a partir da alteração do reflexo de luz pela pele dos participantes (Liu, et al., 2023). Esta técnica não-invasiva permite detectar sinais sutis de estresse e alterações fisiológicas que podem estar associados ao comportamento de mentir.
+
 ---
 
 ## 2. Funcionalidades Principais
@@ -17,6 +25,25 @@ A automação lida com a complexidade de nomes de arquivos e pastas inconsistent
 - **Dupla Formatação de Saída**: Produz duas tabelas de análise principais:
     1.  `master_wide.csv`: Formato "largo", com uma linha por participante e colunas para cada combinação de métrica e condição.
     2.  `all_channels_long.csv`: Formato "longo" (ou "tidy"), ideal para análises de medidas repetidas e modelos mistos.
+
+### 2.1 Processamento de Sinais rPPG
+
+O sistema processa dados de fotopletismografia remota (rPPG) extraídos de vídeos faciais, utilizando as seguintes técnicas:
+
+- **Detecção Facial com MediaPipe Face Mesh**: Mapeamento de 468 pontos específicos da face em 3D (landmarks) nas regiões do nariz, olhos, contorno da face e bochechas.
+- **Extração de Regiões de Interesse (ROI)**: Seleção automática das áreas faciais com maior sinal pulsátil.
+- **Processamento de Canais RGB**: Extração de séries temporais para cada canal de cor (R, G, B), com foco no canal verde (G) que melhor correlaciona-se com a pulsação cardíaca.
+- **Melhoria da Razão Sinal-Ruído**: Combinação linear dos componentes de cor com os vetores X=3G-2(R+B) e Y=1.5(R+B)-G, seguida de normalização para isolar o componente pulsátil.
+- **Filtragem de Sinal**: Aplicação de filtro passa-banda entre 0,7 e 4Hz (42 a 240 BPM) para eliminar ruídos de variações de luz, movimentos e artefatos musculares.
+- **Análise Espectral**: Transformação do sinal para o domínio da frequência via FFT (Transformada Rápida de Fourier) e identificação do pico de frequência cardíaca.
+
+### 2.2 Métricas Extraídas
+
+O sistema extrai e analisa três métricas principais:
+
+- **BPM (Batimentos por Minuto)**: Frequência cardíaca média durante o relato, calculada a partir do pico de frequência do sinal rPPG.
+- **Movimento Facial**: Média de movimentação facial detectada pelos landmarks do MediaPipe Face Mesh.
+- **Movimento Ocular**: Média de movimentação dos olhos durante o relato, extraída da variação dos landmarks oculares.
 
 ---
 
@@ -31,6 +58,34 @@ O processo transforma os dados brutos em dados prontos para análise em duas eta
                                                                    +-> master_wide.csv
                                                                    +-> _diagnostics_unknowns.csv
 ```
+
+### 3.1 Categorias Experimentais
+
+Os dados são organizados em quatro categorias experimentais principais, baseadas em um design fatorial 2x2:
+
+1. **Verdade Positiva (Positive Truth - PT)**: Relatos verdadeiros sobre experiências positivas
+2. **Mentira Positiva (Positive Lie - PL)**: Relatos falsos sobre experiências positivas
+3. **Verdade Negativa (Negative Truth - NT)**: Relatos verdadeiros sobre experiências negativas
+4. **Mentira Negativa (Negative Lie - NL)**: Relatos falsos sobre experiências negativas
+
+### 3.2 Processamento de Dados Fisiológicos
+
+O fluxo de processamento dos sinais fisiológicos segue estas etapas:
+
+1. **Extração de ROI**: Detecção facial e seleção das regiões de interesse
+2. **Processamento RGB**: Extração das séries temporais de cada canal de cor
+3. **Filtragem de Sinal**: Aplicação de filtros para remoção de ruídos
+4. **Análise Espectral**: Transformação do sinal via FFT
+5. **Cálculo de Métricas**: Extração de BPM, movimento facial e ocular
+6. **Consolidação de Dados**: Organização dos resultados por participante e condição experimental
+
+### 3.3 Análise de Variação Temporal
+
+Para cada série temporal extraída, calcula-se a média da taxa de variação absoluta por tempo:
+
+𝑀é𝑑𝑖𝑎 = 1/(𝑁−1) ∑(𝑖=2 até 𝑁) |𝑥𝑖−𝑥𝑖−1|/(𝑡𝑖−𝑡𝑖−1)
+
+Esta métrica permite quantificar a variabilidade dos sinais fisiológicos ao longo do tempo, possibilitando a comparação entre diferentes condições experimentais.
 
 ---
 
@@ -144,3 +199,25 @@ Todos os arquivos gerados são salvos na pasta `summaries/`.
         - `Valence`: `Positive` ou `Negative`.
         - `Channel`: A métrica medida (`BPM`, `Face`, `Eye`).
         - `Value`: O valor médio da métrica para aquela condição.
+
+## 7. Fundamentação Teórica
+
+### 7.1 Fotopletismografia Remota (rPPG)
+
+A fotopletismografia remota é uma técnica não-invasiva que permite extrair informações sobre o fluxo sanguíneo através da análise de vídeos da pele humana. O princípio básico é que a hemoglobina no sangue absorve luz de forma diferente dependendo da sua oxigenação, criando sutis variações de cor na pele que correspondem ao ciclo cardíaco (Verkruysse, Svaasand & Nelson, 2008).
+
+### 7.2 Processamento de Sinais
+
+O processamento do sinal rPPG envolve várias etapas técnicas:
+
+- **Combinação de Canais RGB**: A técnica CHROM (De Haan & Jeanne, 2013) utiliza combinações lineares dos canais de cor para melhorar a razão sinal-ruído: X=3G-2(R+B) e Y=1.5(R+B)-G.
+- **Filtragem Passa-Banda**: Aplicação de filtro entre 0,7 e 4Hz para eliminar ruídos e isolar o componente pulsátil do sinal.
+- **Transformada Rápida de Fourier (FFT)**: Conversão do sinal do domínio do tempo para o domínio da frequência, permitindo identificar o pico correspondente à frequência cardíaca.
+
+### 7.3 Detecção Facial com MediaPipe
+
+O MediaPipe Face Mesh é uma solução de machine learning que detecta 468 pontos faciais em 3D, permitindo o rastreamento preciso de movimentos faciais e oculares. Esta tecnologia é fundamental para a extração das regiões de interesse (ROI) utilizadas na análise rPPG e para a quantificação dos movimentos faciais e oculares durante os relatos.
+
+### 7.4 Aplicação na Detecção de Mentiras
+
+A combinação de métricas fisiológicas (BPM) e comportamentais (movimento facial e ocular) permite uma abordagem multimodal para a detecção de mentiras. Estudos anteriores sugerem que mentir pode produzir alterações sutis na frequência cardíaca e aumentar micro-expressões faciais devido à carga cognitiva e emocional associada ao engano (Lloyd et al., 2017).
